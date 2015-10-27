@@ -1,9 +1,16 @@
 #!/bin/bash
 
 # Author: Allen Vailliencourt
+# Email: allen.vailliencourt@erwinpenland.com
 # October 26, 2015
+#
+# Version 0.5 aka "Mango"
+#   * Let's you authenticate, create, and list schedules.
+#   * Pretty basic and prone to break so just be careful. :)
+# License: MIT (See main repo)
 
-# This script authenticates a user and then performs a Cloud DB backup
+# This script is a pretty basic script that lets you see and create MySQL backup schedules via their API.
+# This feature is currently not available via the Rackspace control panel.
 # API info -- https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#document-general-api-info/authenticate
 
 # Cloud DB Datacenter endpoints
@@ -19,6 +26,7 @@ DBENDPOINT="databases.api.rackspacecloud.com/v1.0"
 ## Check to see if token exists. If so use that one instead of generating a new one
 if [ ! -f /tmp/token.txt ]; then
 	# # to do: add 24 hour time stamp check
+  # # Also to do - error checking and ability to overwrite token/tenant text file
     echo "Token.txt not found! Must generate."
 	# # Authentication script from here --  https://github.com/StafDehat/scripts/blob/master/cloud-get-auth-token.sh
 	read -p "What's the username for your cloud account? " CLOUD_USERNAME
@@ -26,7 +34,7 @@ if [ ! -f /tmp/token.txt ]; then
 	IDENTITY_ENDPOINT="https://identity.api.rackspacecloud.com/v2.0"
 	TOKEN=$( curl $IDENTITY_ENDPOINT/tokens \
 	           -H "Content-Type: application/json" \
-	           -d '{ "auth": { 
+	           -d '{ "auth": {
 	                 "RAX-KSKEY:apiKeyCredentials": {
 	                   "apiKey": "'$CLOUD_API_KEY'",
 	                   "username": "'$CLOUD_USERNAME'" } } }' 2>/dev/null )
@@ -78,39 +86,38 @@ getinstancedetail () {
 }
 
 # create on demand backup
-ondemandbackup () {
-	#GETLIST=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/backups" )
-	CREATEONDEMANDBACKUP=$( curl -v -XPOST -H "Content-Type: application/json X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/schedules" \
-						-d '{ "backup": {
-						"description": "API Generated Backup",
-						"instance": "'$DBSTRIP'",
-						"name": "API DB Snapshot" 
-						}}' )
-}
+# ondemandbackup () {
+# 	#GETLIST=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/backups" )
+# 	CREATEONDEMANDBACKUP=$( curl -s -XPOST -H "Content-Type: application/json X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/schedules" \
+# 						-d '{ "backup": {
+# 						"description": "API Generated Backup",
+# 						"instance": "'$DBSTRIP'",
+# 						"name": "API DB Snapshot"
+# 						}}' )
+# }
 
 # list current schedule(s)
 listschedule () {
-	SHOWSCHEDULE=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/schedules" )
+	SHOWSCHEDULE=$( curl -s -X GET https://$DC.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
 }
 
 # Create new schedule in this case Every Sunday @ 0400 hours
 createschedule () {
 	echo $DBSTRIP
-	CREATESCHEDULE=$( curl -v -XPOST -H "Content-Type: application/json X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/schedules" \
-					-d '{ "schedule": {
-						"action": "backup",
-						"day_of_week": 0,
-						"hour": 4,
-						"instance_id": "'$DBSTRIP'",
-						"minute": 00 
-						}}' )
+	CREATESCHEDULE=$( curl -s -X POST https://$DC.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" -H "Content-Type: application/json" -H "Accept: application/json" \
+					-d '{"schedule":
+                { "action":"backup",
+                  "day_of_week":"0",
+                  "hour":"4",
+                  "minute":"00",
+                  "instance_id":"'$DBSTRIP'" }}' )
 		echo "Schedule created successfully!"
 		echo
-		listschedule
-		echo $SHOWSCHEDULE | python -m json.tool
+		#listschedule
+		#echo $SHOWSCHEDULE | python -m json.tool
 }
 
-#Account info: 
+#Account info:
 read -p "Which DC do you want to query? (ORD, DFW, IAD, LON, SYD, HKG)? " DC
 
 if  [[ "$DC" = "ORD" ]] || [[ "$DC" = "DFW" ]] || [[ "$DC" = "IAD" ]] || [[ "$DC" = "LON" ]] || [[ "$DC" = "SYD" ]] || [[ "$DC" = "HKG" ]]; then
@@ -118,8 +125,9 @@ if  [[ "$DC" = "ORD" ]] || [[ "$DC" = "DFW" ]] || [[ "$DC" = "IAD" ]] || [[ "$DC
 	echo "Now pulling a list of all Cloud DB instances in $DC"
 	listinstances
 	echo
-	getinstancedetail
-	echo $INSTANCEDETAIL | python -m json.tool
+  # for troubleshooting instance json files, otherwise keep commented out
+  #getinstancedetail
+	#echo $INSTANCEDETAIL | python -m json.tool
 	echo
 else
 	echo "Not a DC. Terminating!"
@@ -134,13 +142,13 @@ case $OPTION in
 		# Get current schedule if available
 		listschedule
 		echo $SHOWSCHEDULE | python -m json.tool
-		#if [[ $SHOWSCHEDULES = '' ]]; then
-		#	echo "No schedules listed. Creating a new schedule."
-		#	createschedule
-		#fi
+		# if [[ $SHOWSCHEDULES = '' ]]; then
+		# 	echo "No schedules listed. Creating a new schedule."
+		# 	createschedule
+		# fi
 		;;
 	"c")
-		createschedule 
+		createschedule
 		listschedule
 		echo "Here is your schedule: "
 		echo
@@ -148,7 +156,7 @@ case $OPTION in
 		;;
 	"o")
 		# show on demand backups
-		ondemandbackup 
+		ondemandbackup
 		echo $CREATEONDEMANDBACKUP | python -m json.tool
 		;;
 	*)
