@@ -48,9 +48,14 @@ if [ ! -f /tmp/token.txt ]; then
 	echo "Note: The auth token expires after 24 hours."
 else
 	echo "token.txt found! Reading..."
-	read AUTHTOKEN < /tmp/token.txt
-	read TENANTID < /tmp/tenantid.txt
-	echo "Your auth token is: " $AUTHTOKEN
+  if [ $(find /tmp/token.txt -mmin +1440) ]; then
+    echo "Your token is more than 24 hours old. Regenerating."
+    # add function to generate tokena again...
+  else
+	  read AUTHTOKEN < /tmp/token.txt
+	  read TENANTID < /tmp/tenantid.txt
+	  echo "Your auth token is: " $AUTHTOKEN
+  fi
 fi
 
 #Begin Cloud DB backup script
@@ -65,7 +70,7 @@ fi
 
 #List instances
 listinstances () {
-	INSTANCES=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/instances" 2>/dev/null )
+	INSTANCES=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DCTOLOWER.$DBENDPOINT/$TENANTID/instances" 2>/dev/null )
 	DBINSTANCES=$( echo "$INSTANCES" | jq ".instances | map(.id) | tostring" )
 
 	if [[ "$DBINSTANCES" = '"[\"\"]"' ]] || [[ "$DBINSTANCES" = '"[]"' ]]; then
@@ -73,7 +78,7 @@ listinstances () {
 		exit
 	else
 		echo
-		echo "JSON: $DBINSTANCES"
+		# used for troubleshooting: echo "JSON: $DBINSTANCES"
 		DBSTRIP=$(echo "${DBINSTANCES:4:${#DBINSTANCES}-8}")
 		echo
 		echo "Your $DC database instance(s) is (are): $DBSTRIP"
@@ -82,7 +87,7 @@ listinstances () {
 }
 
 getinstancedetail () {
-	INSTANCEDETAIL=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DC.$DBENDPOINT/$TENANTID/instances/$DBSTRIP" )
+	INSTANCEDETAIL=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/instances/$DBSTRIP -H "X-Auth-Token: $AUTHTOKEN")
 }
 
 # create on demand backup
@@ -98,13 +103,13 @@ getinstancedetail () {
 
 # list current schedule(s)
 listschedule () {
-	SHOWSCHEDULE=$( curl -s -X GET https://$DC.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
+	SHOWSCHEDULE=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
 }
 
 # Create new schedule in this case Every Sunday @ 0400 hours
 createschedule () {
 	echo $DBSTRIP
-	CREATESCHEDULE=$( curl -s -X POST https://$DC.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" -H "Content-Type: application/json" -H "Accept: application/json" \
+	CREATESCHEDULE=$( curl -s -X POST https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" -H "Content-Type: application/json" -H "Accept: application/json" \
 					-d '{"schedule":
                 { "action":"backup",
                   "day_of_week":"0",
@@ -119,8 +124,9 @@ createschedule () {
 
 #Account info:
 read -p "Which DC do you want to query? (ORD, DFW, IAD, LON, SYD, HKG)? " DC
+DCTOLOWER=$(echo "$DC" | awk '{print tolower($0)}')
 
-if  [[ "$DC" = "ORD" ]] || [[ "$DC" = "DFW" ]] || [[ "$DC" = "IAD" ]] || [[ "$DC" = "LON" ]] || [[ "$DC" = "SYD" ]] || [[ "$DC" = "HKG" ]]; then
+if  [[ "$DCTOLOWER" = "ord" ]] || [[ "$DCTOLOWER" = "dfw" ]] || [[ "$DCTOLOWER" = "iad" ]] || [[ "$DCTOLOWER" = "lon" ]] || [[ "$DCTOLOWER" = "syd" ]] || [[ "$DCTOLOWER" = "hkg" ]]; then
 	echo
 	echo "Now pulling a list of all Cloud DB instances in $DC"
 	listinstances
@@ -130,7 +136,7 @@ if  [[ "$DC" = "ORD" ]] || [[ "$DC" = "DFW" ]] || [[ "$DC" = "IAD" ]] || [[ "$DC
 	#echo $INSTANCEDETAIL | python -m json.tool
 	echo
 else
-	echo "Not a DC. Terminating!"
+	echo "Sorry! Your entry is not one of the datacenters listed above. Terminating the script!"
 	exit
 fi
 
@@ -142,6 +148,7 @@ case $OPTION in
 		# Get current schedule if available
 		listschedule
 		echo $SHOWSCHEDULE | python -m json.tool
+    # ack! this is broken. Need to fix it...
 		# if [[ $SHOWSCHEDULES = '' ]]; then
 		# 	echo "No schedules listed. Creating a new schedule."
 		# 	createschedule
