@@ -2,9 +2,9 @@
 
 # Author: Allen Vailliencourt
 # Email: allen.vailliencourt@erwinpenland.com
-# October 26, 2015
 #
-# Version 0.5 aka "Mango"
+# Last updated: October 28, 2015
+# Version 0.5.1 aka "Mango"
 #   * Let's you authenticate, create, and list schedules.
 #   * Pretty basic and prone to break so just be careful. :)
 # License: MIT (See main repo)
@@ -23,12 +23,10 @@
 
 DBENDPOINT="databases.api.rackspacecloud.com/v1.0"
 
-## Check to see if token exists. If so use that one instead of generating a new one
-if [ ! -f /tmp/token.txt ]; then
-	# # to do: add 24 hour time stamp check
-  # # Also to do - error checking and ability to overwrite token/tenant text file
-    echo "Token.txt not found! Must generate."
-	# # Authentication script from here --  https://github.com/StafDehat/scripts/blob/master/cloud-get-auth-token.sh
+## functions! ##
+
+generatetoken () {
+  # Authentication script from here --  https://github.com/StafDehat/scripts/blob/master/cloud-get-auth-token.sh
 	read -p "What's the username for your cloud account? " CLOUD_USERNAME
 	read -p "And now enter your API key (not token): " CLOUD_API_KEY
 	IDENTITY_ENDPOINT="https://identity.api.rackspacecloud.com/v2.0"
@@ -46,27 +44,7 @@ if [ ! -f /tmp/token.txt ]; then
 	echo "Here's your auth token:   $AUTHTOKEN"
 	echo "And your DDI (Tenant ID): $TENANTID"
 	echo "Note: The auth token expires after 24 hours."
-else
-	echo "token.txt found! Reading..."
-  if [ $(find /tmp/token.txt -mmin +1440) ]; then
-    echo "Your token is more than 24 hours old. Regenerating."
-    # add function to generate tokena again...
-  else
-	  read AUTHTOKEN < /tmp/token.txt
-	  read TENANTID < /tmp/tenantid.txt
-	  echo "Your auth token is: " $AUTHTOKEN
-  fi
-fi
-
-#Begin Cloud DB backup script
-
-#DB Locations:
-#		IAD: https://iad.databases.api.rackspacecloud.com/v1.0/<your account #>/
-#		DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/<your account #>/
-
-#
-## Functions!
-#
+}
 
 #List instances
 listinstances () {
@@ -121,6 +99,31 @@ createschedule () {
 		#listschedule
 		#echo $SHOWSCHEDULE | python -m json.tool
 }
+
+## end functions ##
+
+## Check to see if token exists. If so use that one instead of generating a new one
+if [ ! -f /tmp/token.txt ]; then
+  # # Also to do - error checking and ability to overwrite token/tenant text file
+  echo "Token.txt not found! Must generate."
+	generatetoken
+else
+	echo "token.txt found! Reading..."
+  if [ $(find /tmp/token.txt -mmin +1440) ]; then
+    echo "Your token is more than 24 hours old. Regenerating."
+    generatetoken
+  else
+	  read AUTHTOKEN < /tmp/token.txt
+	  read TENANTID < /tmp/tenantid.txt
+	  echo "Your auth token is: " $AUTHTOKEN
+  fi
+fi
+
+#Begin Cloud DB backup script
+
+#DB Locations:
+#		IAD: https://iad.databases.api.rackspacecloud.com/v1.0/<your account #>/
+#		DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/<your account #>/
 
 #Account info:
 read -p "Which DC do you want to query? (ORD, DFW, IAD, LON, SYD, HKG)? " DC
