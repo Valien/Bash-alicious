@@ -79,11 +79,6 @@ getinstancedetail () {
 # 						}}' )
 # }
 
-# list current schedule(s)
-listschedule () {
-	SHOWSCHEDULE=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
-}
-
 # Create new schedule in this case Every Sunday @ 0400 hours
 createschedule () {
 	echo $DBSTRIP
@@ -99,6 +94,26 @@ createschedule () {
 		#listschedule
 		#echo $SHOWSCHEDULE | python -m json.tool
 }
+
+# list current schedule(s)
+# listschedule () {
+# 	SHOWSCHEDULE=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
+# }
+#
+# listschedulebyid () {
+#   # to do: add ability to list backup schedules by ID.
+#   # https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#list-schedule-for-running-backup-by-schedule-id
+# }
+#
+# updateschedulebyid () {
+#   # to do: add ability to update backup schedule by ID.
+#   # https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#update-schedule-for-backups-by-schedule-id
+# }
+#
+# deleteschedulebyid () {
+#   # to do: add ability to delete schedules by ID.
+#   # https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#delete-schedule-for-running-backup-by-schedule-id
+# }
 
 ## end functions ##
 
@@ -144,7 +159,7 @@ else
 fi
 
 # Create new backup for instance
-read -p "Do you want to (l)ist schedules or (c)reate a new backup schedule? " OPTION
+read -p "Do you want to (l)ist current schedules, (c)reate a new backup schedule, or e(x)it the script? " OPTION
 
 case $OPTION in
 	"l")
@@ -169,7 +184,8 @@ case $OPTION in
 		ondemandbackup
 		echo $CREATEONDEMANDBACKUP | python -m json.tool
 		;;
-	*)
-		echo "Sorry wrong option chosen. Terminating."
-		exit
-esac
+  *)
+    echo "Hey, thanks for using the script. Have a good day."
+    exit
+    ;;
+  esac
