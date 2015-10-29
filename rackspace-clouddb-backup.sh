@@ -12,6 +12,14 @@
 # This script is a pretty basic script that lets you see and create MySQL backup schedules via their API.
 # This feature is currently not available via the Rackspace control panel.
 # API info -- https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#document-general-api-info/authenticate
+#
+
+# Requirements:
+#  Bash 3.2 or greater
+#  jq - for making the .json data spiffy looking
+#  perl 5 or greater
+#  awk
+#  Most of the above should be standard on any OSX or Linux system. You might need to manually add jq though.
 
 # Cloud DB Datacenter endpoints
 #ORD="https://ord.databases.api.rackspacecloud.com/v1.0/"
@@ -96,9 +104,10 @@ createschedule () {
 }
 
 # list current schedule(s)
-# listschedule () {
-# 	SHOWSCHEDULE=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
-# }
+listschedule () {
+	SHOWSCHEDULE=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" )
+}
+
 #
 # listschedulebyid () {
 #   # to do: add ability to list backup schedules by ID.
@@ -115,6 +124,20 @@ createschedule () {
 #   # https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#delete-schedule-for-running-backup-by-schedule-id
 # }
 
+# Get current list of backups on system
+listbackups() {
+	GETBACKUPS=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/backups?datastore=mysql -H "X-Auth-Token: $AUTHTOKEN" )
+	#echo $GETBACKUPS | jq ''
+	echo
+	echo "Completed Backups"
+	echo "================"
+	for backuplist in $( echo "$GETBACKUPS" | jq ".backups | map(.updated)[],length" )
+	do
+		echo $backuplist
+		echo
+	done
+
+}
 ## end functions ##
 
 ## Check to see if token exists. If so use that one instead of generating a new one
@@ -159,13 +182,18 @@ else
 fi
 
 # Create new backup for instance
-read -p "Do you want to (l)ist current schedules, (c)reate a new backup schedule, or e(x)it the script? " OPTION
+echo "Do you want to..."
+echo "(l)ist current schedules"
+echo "(c)reate a new backup schedule"
+echo "(v)iew current backups"
+echo "e(x)it the script"
+read -p "Make a selection: " OPTION
 
 case $OPTION in
 	"l")
 		# Get current schedule if available
 		listschedule
-		echo $SHOWSCHEDULE | python -m json.tool
+		echo $SHOWSCHEDULE | jq ''
     # ack! this is broken. Need to fix it...
 		# if [[ $SHOWSCHEDULES = '' ]]; then
 		# 	echo "No schedules listed. Creating a new schedule."
@@ -177,12 +205,16 @@ case $OPTION in
 		listschedule
 		echo "Here is your schedule: "
 		echo
-		echo $SHOWSCHEDULE | python -m json.tool
+		echo $SHOWSCHEDULE | jq ''
 		;;
 	"o")
 		# show on demand backups
 		ondemandbackup
-		echo $CREATEONDEMANDBACKUP | python -m json.tool
+		echo $CREATEONDEMANDBACKUP | jq ''
+		;;
+	"v")
+		listbackups
+
 		;;
   *)
     echo "Hey, thanks for using the script. Have a good day."
