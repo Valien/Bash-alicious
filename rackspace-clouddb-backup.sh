@@ -3,8 +3,8 @@
 # Author: Allen Vailliencourt
 # Email: allen.vailliencourt@erwinpenland.com
 #
-# Last updated: October 28, 2015
-# Version 0.5.1 aka "Mango"
+# Last updated: November 4, 2015
+# Version 0.6.0 aka "Guava"
 #   * Let's you authenticate, create, and list schedules.
 #   * Pretty basic and prone to break so just be careful. :)
 # License: MIT (See main repo)
@@ -127,17 +127,31 @@ listschedule () {
 # Get current list of backups on system
 listbackups() {
 	GETBACKUPS=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/backups?datastore=mysql -H "X-Auth-Token: $AUTHTOKEN" )
+	NUMOFBACKUPS=$( echo "$GETBACKUPS" | jq ".backups | length" )
+	echo "There are a total of " $NUMOFBACKUPS " backups currently."
 	#echo $GETBACKUPS | jq ''
 	echo
-	echo "Completed Backups"
-	echo "================"
-	for backuplist in $( echo "$GETBACKUPS" | jq ".backups | map(.updated)[],length" )
+	echo "Backup #          Date Completed                         Backup ID"
+	echo "============================================================================"
+	for (( i=0; i < "$NUMOFBACKUPS"; i++ )) #in
 	do
-		echo $backuplist
-		echo
+		printf "$i)          "
+		echo "$GETBACKUPS" | jq ".backups | map(.updated)["$i"]+\"     \"+map(.id)["$i"]"
 	done
-
 }
+
+# let's you delete older instances of backups via API
+# https://developer.rackspace.com/docs/cloud-databases/v1/developer-guide/#delete-backup
+deletebackup() {
+ #DELETE /{version}/{accountId}/backups/{backupId}
+ listbackups
+ read -p "Which backup do you want to delete (enter the number)? " NUMOFINSTANCE
+ INSTANCESELECTED=$(echo "$GETBACKUPS" | jq ".backups | map(.id)["$NUMOFINSTANCE"]")
+ INSTANCEDELETEDSTRIP=$(echo "${INSTANCESELECTED:1:${#INSTANCESELECTED}-2}")
+ echo $( curl -s -X DELETE https://$DCTOLOWER.$DBENDPOINT/$TENANTID/backups/$INSTANCEDELETEDSTRIP -H "X-Auth-Token: $AUTHTOKEN" )
+ echo "$INSTANCEDELETEDSTRIP backup deleted!"
+}
+
 ## end functions ##
 
 ## Check to see if token exists. If so use that one instead of generating a new one
@@ -186,6 +200,7 @@ echo "Do you want to..."
 echo "(l)ist current schedules"
 echo "(c)reate a new backup schedule"
 echo "(v)iew current backups"
+echo "(d)elete a backup"
 echo "e(x)it the script"
 read -p "Make a selection: " OPTION
 
@@ -214,7 +229,9 @@ case $OPTION in
 		;;
 	"v")
 		listbackups
-
+		;;
+	"d")
+		deletebackup
 		;;
   *)
     echo "Hey, thanks for using the script. Have a good day."
