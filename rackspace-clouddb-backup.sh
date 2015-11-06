@@ -3,8 +3,8 @@
 # Author: Allen Vailliencourt
 # Email: allen.vailliencourt@erwinpenland.com
 #
-# Last updated: November 4, 2015
-# Version 0.6.0 aka "Guava"
+# Last updated: November 6, 2015
+# Version 0.6.1 aka "Guava"
 #   * Let's you authenticate, create, and list schedules.
 #   * Pretty basic and prone to break so just be careful. :)
 # License: MIT (See main repo)
@@ -54,6 +54,62 @@ generatetoken () {
 	echo "Note: The auth token expires after 24 hours."
 }
 
+options() {
+	echo "Do you want to..."
+	echo "(l)ist current schedules"
+	echo "(c)reate a new backup schedule"
+	echo "(v)iew current backups"
+	echo "(d)elete a backup"
+	echo "e(x)it the script"
+	read -p "Make a selection: " OPTION
+
+	case $OPTION in
+		"l")
+			# Get current schedule if available
+			listschedule
+			echo $SHOWSCHEDULE | jq ''
+	    # ack! this is broken. Need to fix it...
+			# if [[ $SHOWSCHEDULES = '' ]]; then
+			# 	echo "No schedules listed. Creating a new schedule."
+			# 	createschedule
+			# fi
+			echo
+			options
+			;;
+		"c")
+			createschedule
+			listschedule
+			echo "Here is your schedule: "
+			echo
+			echo $SHOWSCHEDULE | jq ''
+			echo
+			options
+			;;
+		"o")
+			# show on demand backups
+			ondemandbackup
+			echo $CREATEONDEMANDBACKUP | jq ''
+			echo
+			options
+			;;
+		"v")
+			listbackups
+			echo
+			options
+			;;
+		"d")
+			deletebackup
+			echo
+			options
+			;;
+	  *)
+			echo
+			echo "Hey, thanks for using the script. Have a good day."
+	    exit
+	    ;;
+	  esac
+}
+
 #List instances
 listinstances () {
 	INSTANCES=$( curl -s -XGET -H "X-Auth-Token: $AUTHTOKEN" "https://$DCTOLOWER.$DBENDPOINT/$TENANTID/instances" 2>/dev/null )
@@ -89,16 +145,25 @@ getinstancedetail () {
 
 # Create new schedule in this case Every Sunday @ 0400 hours
 createschedule () {
-	echo $DBSTRIP
-	CREATESCHEDULE=$( curl -s -X POST https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" -H "Content-Type: application/json" -H "Accept: application/json" \
-					-d '{"schedule":
-                { "action":"backup",
-                  "day_of_week":"0",
-                  "hour":"4",
-                  "minute":"00",
-                  "instance_id":"'$DBSTRIP'" }}' )
-		echo "Schedule created successfully!"
+	read -p "This will create a default weekly schedule on Sunday @ 0400 hours. Do you want to continue? (Y/N) " CONTINUE
+	if [[ ("$CONTINUE" = "Y")  || ("$CONTINUE" = "y") ]]; then
 		echo
+		echo $DBSTRIP
+		CREATESCHEDULE=$( curl -s -X POST https://$DCTOLOWER.$DBENDPOINT/$TENANTID/schedules -H "X-Auth-Token: $AUTHTOKEN" -H "Content-Type: application/json" -H "Accept: application/json" \
+						-d '{"schedule":
+	                { "action":"backup",
+	                  "day_of_week":"0",
+	                  "hour":"4",
+	                  "minute":"00",
+	                  "instance_id":"'$DBSTRIP'" }}' )
+			echo "Schedule created successfully!"
+			echo
+		else
+			echo "No schedules created or modified."
+			options
+			exit
+	fi
+
 		#listschedule
 		#echo $SHOWSCHEDULE | python -m json.tool
 }
@@ -128,6 +193,7 @@ listschedule () {
 listbackups() {
 	GETBACKUPS=$( curl -s -X GET https://$DCTOLOWER.$DBENDPOINT/$TENANTID/backups?datastore=mysql -H "X-Auth-Token: $AUTHTOKEN" )
 	NUMOFBACKUPS=$( echo "$GETBACKUPS" | jq ".backups | length" )
+	echo
 	echo "There are a total of " $NUMOFBACKUPS " backups currently."
 	#echo $GETBACKUPS | jq ''
 	echo
@@ -195,46 +261,5 @@ else
 	exit
 fi
 
-# Create new backup for instance
-echo "Do you want to..."
-echo "(l)ist current schedules"
-echo "(c)reate a new backup schedule"
-echo "(v)iew current backups"
-echo "(d)elete a backup"
-echo "e(x)it the script"
-read -p "Make a selection: " OPTION
 
-case $OPTION in
-	"l")
-		# Get current schedule if available
-		listschedule
-		echo $SHOWSCHEDULE | jq ''
-    # ack! this is broken. Need to fix it...
-		# if [[ $SHOWSCHEDULES = '' ]]; then
-		# 	echo "No schedules listed. Creating a new schedule."
-		# 	createschedule
-		# fi
-		;;
-	"c")
-		createschedule
-		listschedule
-		echo "Here is your schedule: "
-		echo
-		echo $SHOWSCHEDULE | jq ''
-		;;
-	"o")
-		# show on demand backups
-		ondemandbackup
-		echo $CREATEONDEMANDBACKUP | jq ''
-		;;
-	"v")
-		listbackups
-		;;
-	"d")
-		deletebackup
-		;;
-  *)
-    echo "Hey, thanks for using the script. Have a good day."
-    exit
-    ;;
-  esac
+options
