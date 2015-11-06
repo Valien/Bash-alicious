@@ -1,6 +1,6 @@
 Oh hai.
 
-Here be a few bash files that I've collected and use. Feel free to utilize as well!
+Here be a few bash files that I've collected, written, and use. Feel free to utilize as well!
 
 Here are some other very cool script repos:
 
