@@ -211,11 +211,21 @@ listbackups() {
 deletebackup() {
  #DELETE /{version}/{accountId}/backups/{backupId}
  listbackups
- read -p "Which backup do you want to delete (enter the number)? " NUMOFINSTANCE
- INSTANCESELECTED=$(echo "$GETBACKUPS" | jq ".backups | map(.id)["$NUMOFINSTANCE"]")
- INSTANCEDELETEDSTRIP=$(echo "${INSTANCESELECTED:1:${#INSTANCESELECTED}-2}")
- echo $( curl -s -X DELETE https://$DCTOLOWER.$DBENDPOINT/$TENANTID/backups/$INSTANCEDELETEDSTRIP -H "X-Auth-Token: $AUTHTOKEN" )
- echo "$INSTANCEDELETEDSTRIP backup deleted!"
+ echo
+ echo "NOTE: If you delete a FULL backup then all INCREMENTAL backups will be deleted as well."
+ echo
+ read -p "Which backup do you want to delete (enter the number or e(x)it)? " NUMOFINSTANCE
+ if [[ "$NUMOFINSTANCE" = "x" ]]; then
+ 	echo
+	echo "Delete cancelled."
+	echo
+	options
+ else
+	INSTANCESELECTED=$(echo "$GETBACKUPS" | jq ".backups | map(.id)["$NUMOFINSTANCE"]")
+ 	INSTANCEDELETEDSTRIP=$(echo "${INSTANCESELECTED:1:${#INSTANCESELECTED}-2}")
+ 	echo $( curl -s -X DELETE https://$DCTOLOWER.$DBENDPOINT/$TENANTID/backups/$INSTANCEDELETEDSTRIP -H "X-Auth-Token: $AUTHTOKEN" )
+ 	echo "$INSTANCEDELETEDSTRIP backup deleted!"
+ fi
 }
 
 ## end functions ##
