@@ -7,7 +7,6 @@
 # Usage: ./ssl-query.sh <domain> -- tests the inputted here and returns quick information
 # Usage 2: ./ssl-query.sh -- prompts user with menu first
 
-
 # functions
 options() {
   echo "Do you want to..."
