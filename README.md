@@ -23,6 +23,8 @@ Here are some other very cool script repos:
 
 * `DeleteSQLBackups.ps1` -- This script runs through a specified folder and removes all SQL Express backups (.bak) after an X amount of time.
 
+* `ExtractMulti-Zips.ps1` -- This script simply extracts all .zip files in current working directory.
+
 * `FileCount.ps1` -- This script just runs through a bunch of folders and outputs a total file count to a .txt file
 
 * `RemoveTempFiles.ps1` -- This script removes temporary files in whatever directory you set. Similar to the DeleteSQLBackups.ps1 script.
